@@ -14,11 +14,8 @@ class UptimeCounter {
 
  private:
   Preferences preferences_;
-  uint64_t savedSessionMilliseconds_ = 0;
-  uint64_t elapsedSessionMilliseconds_ = 0;
   uint64_t previousSessionMilliseconds_ = 0;
-  uint32_t lastUpdateMilliseconds_ = 0;
-  uint32_t lastSaveAttemptMilliseconds_ = 0;
+  uint64_t lastSaveAttemptMilliseconds_ = 0;
   bool storageReady_ = false;
   bool hasPreviousSession_ = false;
 };

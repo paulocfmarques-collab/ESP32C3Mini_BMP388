@@ -116,6 +116,9 @@ void OledDisplay::nextPage() {
       currentPage_ = Page::ResetReason;
       break;
     case Page::ResetReason:
+      currentPage_ = Page::Battery;
+      break;
+    case Page::Battery:
       currentPage_ = Page::Home;
       break;
   }
@@ -123,7 +126,9 @@ void OledDisplay::nextPage() {
 
 void OledDisplay::render(uint64_t currentUptimeSeconds,
                          uint64_t previousUptimeSeconds,
-                         bool hasPreviousSession) {
+                         bool hasPreviousSession,
+                         uint32_t batteryMillivolts,
+                         uint8_t batteryPercent) {
   if (historyCount_ == 0) {
     showStartup();
     return;
@@ -151,6 +156,9 @@ void OledDisplay::render(uint64_t currentUptimeSeconds,
       break;
     case Page::ResetReason:
       drawResetReasonPage();
+      break;
+    case Page::Battery:
+      drawBatteryPage(batteryMillivolts, batteryPercent);
       break;
   }
 }
@@ -300,6 +308,36 @@ void OledDisplay::drawUptimePage(uint64_t currentUptimeSeconds,
     display_.print("--");
   }
 
+  display_.display();
+}
+
+void OledDisplay::drawBatteryPage(uint32_t millivolts, uint8_t percent) {
+  constexpr int16_t barWidth = 112;
+  constexpr int16_t fillWidth = barWidth - 4;
+  display_.clearDisplay();
+  drawHeader("BATERIA");
+  if (millivolts == 0) {
+    display_.setCursor(19, 25);
+    display_.print("SEM SINAL GPIO0");
+    display_.setCursor(34, 46);
+    display_.print("--.-- V");
+    display_.display();
+    return;
+  }
+  display_.setCursor(100, 0);
+  display_.print(percent);
+  display_.print('%');
+
+  display_.drawRect(8, 22, barWidth, 17, SSD1306_WHITE);
+  const int16_t filled = (fillWidth * percent + 50) / 100;
+  if (filled > 0) {
+    display_.fillRect(10, 24, filled, 13, SSD1306_WHITE);
+  }
+
+  display_.setTextSize(2);
+  display_.setCursor(28, 46);
+  display_.print(millivolts / 1000.0, 2);
+  display_.print(" V");
   display_.display();
 }
 

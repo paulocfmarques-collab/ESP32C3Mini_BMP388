@@ -6,6 +6,7 @@ This guide documents the GPIO assignments configured in `ESP32C3Mini_BMP388.ino`
 
 | ESP32-C3 Mini pin | Connect to | Notes |
 | --- | --- | --- |
+| GPIO 0 | Junction of the two battery sense resistors | ADC1 input, approximately half the battery voltage |
 | GPIO 8 | OLED SDA and BMP388 SDA | I2C data (`Wire.begin(8, 9)`) |
 | GPIO 9 | OLED SCL and BMP388 SCL | I2C clock (`Wire.begin(8, 9)`) |
 | GPIO 4 | One terminal of the push button | Active-low input with internal pull-up |
@@ -27,6 +28,17 @@ GPIO 4 --------- momentary push button --------- GND
 
 `*` Use the supply input and voltage specified by the breakout manufacturer. Keep I2C logic levels at 3.3 V; ESP32-C3 GPIO pins are not 5 V tolerant.
 
+## Battery voltage monitor
+
+```text
+Li-ion battery + --- 100 kΩ --- GPIO 0 junction --- 100 kΩ --- GND
+Li-ion battery - ---------------------------- GND
+```
+
+The divider is for measuring one Li-ion cell. The battery negative and ESP32 ground must be connected. A cell at 4.20 V produces about 2.10 V at GPIO0. Use the board's supported power input for the power supply.
+
+When troubleshooting a zero reading, measure between the resistor junction and ESP32 GND with the circuit connected. For unstable readings, Espressif suggests a 100 nF ceramic capacitor between the ADC input and GND.
+
 ## I2C devices
 
 | Device | Configured address |
@@ -45,11 +57,13 @@ The button is connected between GPIO 4 and GND. The firmware configures GPIO 4 w
 - Released: HIGH
 - Pressed: LOW
 - One debounced press advances one screen
-- The sixth screen wraps back to the home screen
+- The seventh screen (battery) wraps back to the home screen
 
 No external pull-up resistor is required for this wiring.
 
 ## Serial connection and power
+
+The battery-powered build uses one 18650 Li-ion cell, a TP4056 charger module, and a voltage regulator to power the board.
 
 Serial diagnostics run at 115200 baud. The exact USB/UART pins depend on the selected ESP32-C3 board and its USB configuration; the sketch does not assign separate UART GPIO pins.
 

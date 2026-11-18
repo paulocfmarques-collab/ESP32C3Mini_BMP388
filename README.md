@@ -18,7 +18,7 @@
 
 ## Overview
 
-This project reads temperature and pressure from a BMP388, estimates altitude, and presents the data on a 128x64 SSD1306 OLED. A single push button cycles through six screens. The firmware also records the previous session's uptime in ESP32 Preferences and uses the task watchdog to recover from a stalled main loop.
+This project reads temperature and pressure from a BMP388, estimates altitude, and presents the data on a 128x64 SSD1306 OLED. A single push button cycles through seven screens, including a battery monitor. The firmware also records the previous session's uptime in ESP32 Preferences and uses the task watchdog to recover from a stalled main loop.
 
 The OLED's physical yellow strip is reserved for the screen title and short status text. Sensor readings and graphs occupy the remaining display area.
 
@@ -26,7 +26,7 @@ The OLED's physical yellow strip is reserved for the screen title and short stat
 
 - BMP388 support at I2C address `0x76`, with fallback to `0x77`.
 - SSD1306 OLED support at I2C address `0x3C`.
-- Six circularly navigated screens.
+- Seven circularly navigated screens.
 - Three rolling, auto-scaled sensor graphs with 120 one-second samples.
 - Current and previous session uptime, including periodic Preferences storage.
 - Reset-reason diagnostics using the ESP32 reset-reason API.
@@ -35,7 +35,7 @@ The OLED's physical yellow strip is reserved for the screen title and short stat
 
 ## Display screens
 
-Press the button once to advance. After screen 6, the next press returns to screen 1.
+Press the button once to advance. After screen 7, the next press returns to screen 1.
 
 | Screen | Content |
 | --- | --- |
@@ -45,8 +45,11 @@ Press the button once to advance. After screen 6, the next press returns to scre
 | 4 | Altitude graph in m |
 | 5 | Current and previous session uptime in seconds |
 | 6 | Reason for the most recent ESP32 startup/reset |
+| 7 | Battery charge bar, estimated percentage, and measured voltage |
 
 Graphs use the most recent 120 successful sensor readings, sampled approximately once per second. Their vertical scale adjusts to the values in the current history window. Graph history is held in RAM and starts fresh after a reboot.
+
+The firmware averages 16 calibrated GPIO0 readings about once per second and doubles the result for the 100 kΩ / 100 kΩ divider. The OLED smooths both voltage and percentage by blending 25% of the latest measurement with 75% of the previous displayed value. The first valid reading and a zero reading appear immediately. Serial reports each measurement before display smoothing. The displayed percentage is a linear voltage estimate from 3.20 V (0%) to 4.20 V (100%). Voltage measured while the device is running can vary with load, and the percentage does not represent remaining runtime. See [PINOUT.md](./PINOUT.md#battery-voltage-monitor) for the divider wiring.
 
 ## Hardware
 
@@ -54,7 +57,9 @@ Graphs use the most recent 120 successful sensor readings, sampled approximately
 - BMP388 breakout
 - 128x64 SSD1306 I2C OLED module
 - Momentary push button
-- Suitable power source for the board and connected modules
+- One rechargeable 18650 Li-ion cell, a TP4056 charger module, and a voltage regulator
+
+The assembled unit ran for approximately **33 hours on battery power** in a runtime test.
 
 See [PINOUT.md](./PINOUT.md) for the wiring table, button connection, I2C addresses, and power notes.
 
@@ -77,14 +82,18 @@ See [PINOUT.md](./PINOUT.md) for the wiring table, button connection, I2C addres
 - A sensor reading is requested about once per second.
 - Temperature oversampling is set to 8x and pressure oversampling to 4x.
 - The BMP388 IIR filter coefficient is set to 3.
-- Altitude is calculated using a fixed sea-level pressure reference of 1013.25 hPa. Adjust this reference in `Bmp388Sensor.cpp` if a different local pressure reference is needed.
+- Altitude is calculated from the same pressure sample shown on the OLED and over Serial, using a fixed sea-level reference of 1013.25 hPa.
+- A drop in measured pressure raises the estimated altitude even when the sensor stays in place. Near sea level, a drop of 1 hPa corresponds to about 8 m. Compare `Pressao` and `Altitude` in the Serial Monitor at 115200 baud to check for this pattern.
+- For an estimate of elevation above sea level, set `SEALEVEL_PRESSURE_HPA` in `Bmp388Sensor.cpp` to the current local pressure reduced to sea level. As weather changes, the estimate can drift again if the reference stays fixed.
 - Sensor initialization or read failures are reported over Serial; read failures are also shown on the OLED.
 
 ### Uptime storage
 
-The current session starts at zero on boot. The firmware checkpoints session milliseconds every 60 seconds in the `bmp388` Preferences namespace under the `session_ms` key. On the next boot, that checkpoint is shown as the previous session.
+The current session uses the ESP32-C3 internal timer (`esp_timer_get_time()`) to measure elapsed time since boot. The home screen shows days, hours, and minutes (for example, `15d09:15`). The uptime screen shows the current session and last saved session in seconds. The firmware checkpoints session milliseconds every 60 seconds in the `bmp388` Preferences namespace under the `session_ms` key. A checkpoint saved by firmware with the earlier double-counting bug can still show an inflated value until a new checkpoint is saved.
 
 An abrupt power loss can leave up to roughly one minute of the current session unrecorded. Preferences initialization or write failures are reported over Serial. If Preferences cannot be opened, the current-session counter still runs but cannot be preserved.
+
+For a battery runtime test, charge the battery and start a fresh session with the ESP32 powered only by the battery. After it shuts down, power the ESP32 again and check `SESSAO ANTERIOR (s)` on the uptime screen. This is the last saved elapsed time. If a session ends before its first successful checkpoint, the display can still show a checkpoint from an older session.
 
 ### Watchdog
 
@@ -94,7 +103,7 @@ If watchdog configuration fails, the firmware reports the failure over Serial an
 
 ## Serial output
 
-The firmware prints temperature, pressure, and altitude at 115200 baud. If USB power is unstable, or an external USB-to-UART adapter is used, see the power guidance in [PINOUT.md](./PINOUT.md).
+The firmware prints temperature, pressure, and altitude at 115200 baud. `Bateria GPIO0` reports the raw ADC count, the calibrated voltage at the pin, and the calculated battery voltage. If the OLED shows `SEM SINAL GPIO0`, compare `pino` with a DC multimeter measurement between GPIO0 and GND. With a 3.70 V cell, expect about 1850 mV at the pin. If USB power is unstable, or an external USB-to-UART adapter is used, see the power guidance in [PINOUT.md](./PINOUT.md).
 
 ## Project structure
 

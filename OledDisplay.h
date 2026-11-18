@@ -17,7 +17,9 @@ class OledDisplay {
   void nextPage();
   void render(uint64_t currentUptimeSeconds,
               uint64_t previousUptimeSeconds,
-              bool hasPreviousSession);
+              bool hasPreviousSession,
+              uint32_t batteryMillivolts,
+              uint8_t batteryPercent);
   void showError(const char* message);
 
  private:
@@ -27,7 +29,8 @@ class OledDisplay {
     Temperature,
     Altitude,
     Uptime,
-    ResetReason
+    ResetReason,
+    Battery
   };
 
   enum class GraphMetric : uint8_t {
@@ -48,6 +51,7 @@ class OledDisplay {
                       uint64_t previousUptimeSeconds,
                       bool hasPreviousSession);
   void drawResetReasonPage();
+  void drawBatteryPage(uint32_t millivolts, uint8_t percent);
   float valueFor(const SensorReading& reading, GraphMetric metric) const;
 
   Adafruit_SSD1306& display_;

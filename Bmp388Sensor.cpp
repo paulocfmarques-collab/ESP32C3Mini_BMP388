@@ -1,6 +1,7 @@
 #include "Bmp388Sensor.h"
 
 #include <Adafruit_BMP3XX.h>
+#include <cmath>
 
 namespace {
 constexpr float SEALEVEL_PRESSURE_HPA = 1013.25F;
@@ -26,6 +27,7 @@ bool Bmp388Sensor::read(SensorReading& reading) {
 
   reading.temperature = sensor_.temperature;
   reading.pressureHpa = sensor_.pressure / 100.0F;
-  reading.altitude = sensor_.readAltitude(SEALEVEL_PRESSURE_HPA);
+  reading.altitude = 44330.0F *
+                     (1.0F - std::pow(reading.pressureHpa / SEALEVEL_PRESSURE_HPA, 0.1903F));
   return true;
 }
